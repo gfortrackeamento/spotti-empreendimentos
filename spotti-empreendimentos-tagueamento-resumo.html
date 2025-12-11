@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório de Performance de Dados | Spotti x Gfor</title>
+  <meta name="description" content="Relatório técnico e interativo da reestruturação completa de tagueamento, Consent Mode v2 e server-side analytics para Spotti Empreendimentos.">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,1,0" rel="stylesheet">
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              orange: '#F58634',
+              orangeSoft: '#FFB457',
+              dark: '#050505',
+              gray: '#181818',
+              grid: '#111111',
+              green: '#22C55E',
+              purple: '#8B5CF6',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 7s ease-in-out infinite',
+            'fade-in': 'fadeIn 0.9s ease-out forwards',
+            'flow-right': 'flowRight 2.6s linear infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px) translateX(0px)' },
+              '50%': { transform: 'translateY(-12px) translateX(-6px)' }
+            },
+            fadeIn: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' }
+            },
+            flowRight: {
+              '0%': { backgroundPosition: '0 0' },
+              '100%': { backgroundPosition: '32px 0' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #050505;
+      color: #e5e5e5;
+      overflow-x: hidden;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .grid-bg {
+      background-color: #050505;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    .glass {
+      background: rgba(7,7,7,0.9);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+    }
+
+    .glass-card {
+      background: radial-gradient(circle at 0% 0%, rgba(245,134,52,0.06) 0, rgba(255,255,255,0.02) 32%, rgba(255,255,255,0.01) 100%);
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: all 0.28s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(245,134,52,0.42);
+      transform: translateY(-3px);
+      box-shadow: 0 22px 60px rgba(245,134,52,0.20);
+    }
+
+    .gradient-main {
+      background: linear-gradient(90deg, #ffffff, #f5f5f5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .gradient-accent {
+      background: linear-gradient(90deg, #F58634, #FFB457);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .token-key { color: #F58634; }
+    .token-string { color: #A5D6A7; }
+    .token-comment { color: #737373; font-style: italic; }
+    .token-func { color: #82B1FF; }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-thumb { background: #2c2c2c; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F58634; }
+  </style>
+</head>
+
+<body class="antialiased selection:bg-brand-orange selection:text-white">
+
+  <!-- NAVBAR -->
+  <nav id="navbar" class="fixed top-0 inset-x-0 z-50 glass border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="h-16 flex items-center justify-between">
+        <!-- Logo simples (você troca a URL depois) -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="scrollToSection('hero')">
+          <!-- Substitua LOGO_URL_AQUI pela URL da sua logo -->
+          <img src="LOGO_URL_AQUI" alt="Spotti x Gfor" class="h-9 w-auto object-contain">
+        </div>
+
+        <!-- Desktop menu -->
+        <div class="hidden md:flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest">
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('hero')">Visão Geral</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('before-after')">Antes x Depois</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('architecture')">Arquitetura</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('lead-flow')">Fluxo do Lead</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('consent')">Consent Mode</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('server')">Server-Side</button>
+          <button class="px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
+                  onclick="scrollToSection('impact')">Impacto</button>
+        </div>
+
+        <!-- Mobile button -->
+        <button class="md:hidden text-white p-2" onclick="toggleMobileMenu()">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden bg-black border-t border-white/10">
+      <div class="px-4 py-3 space-y-1 text-sm">
+        <button onclick="scrollToSection('hero'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Visão Geral</button>
+        <button onclick="scrollToSection('before-after'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Antes x Depois</button>
+        <button onclick="scrollToSection('architecture'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Arquitetura</button>
+        <button onclick="scrollToSection('lead-flow'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Fluxo do Lead</button>
+        <button onclick="scrollToSection('consent'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Consent Mode</button>
+        <button onclick="scrollToSection('server'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Server-Side</button>
+        <button onclick="scrollToSection('impact'); toggleMobileMenu()" class="block w-full text-left px-3 py-2 rounded-md text-gray-300 hover:text-white hover:bg-white/5">Impacto</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- HERO -->
+    <section id="hero" class="relative min-h-screen flex items-center pt-20 overflow-hidden grid-bg">
+      <!-- luzes de fundo -->
+      <div class="pointer-events-none absolute -top-24 -right-24 w-[520px] h-[520px] bg-brand-orange/25 rounded-full blur-[140px]"></div>
+      <div class="pointer-events-none absolute -bottom-24 -left-24 w-[520px] h-[520px] bg-brand-purple/30 rounded-full blur-[140px] opacity-70"></div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.9fr)] gap-14 items-center">
+          <!-- TEXTO -->
+          <div class="space-y-8 animate-fade-in">
+            <!-- Pill de status -->
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/70 border border-white/10 text-[11px] font-semibold tracking-[0.2em] uppercase text-gray-300">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-green"></span>
+              </span>
+              Status: Implementação Finalizada
+            </div>
+
+            <div>
+              <p class="text-xs text-gray-400 tracking-[0.26em] uppercase mb-3">GTM • CONSENT • SERVER-SIDE • CAPI</p>
+              <h1 class="text-4xl md:text-6xl font-extrabold leading-tight">
+                <span class="gradient-main">Seus dados</span><br>
+                <span class="gradient-accent">agora trabalham por você.</span>
+              </h1>
+            </div>
+
+            <p class="text-base md:text-lg text-gray-300 max-w-xl leading-relaxed">
+              Saímos de um container remendado, com pixels soltos e risco de LGPD, para uma
+              <strong>plataforma de medição unificada</strong>, com Consent Mode v2, dataLayer padronizado,
+              Google Ads + Meta alinhados e trilha server-side via Stape.
+            </p>
+
+            <!-- métricas rápidas -->
+            <div class="flex flex-wrap gap-4 pt-2">
+              <div class="glass-card rounded-xl p-4 flex items-center gap-4 min-w-[190px]">
+                <div class="p-3 rounded-lg bg-brand-orange/15 text-brand-orange">
+                  <span class="material-symbols-outlined">stacked_bar_chart</span>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-400 tracking-widest uppercase font-semibold">Qualidade de Sinal</p>
+                  <p class="text-2xl font-bold text-white">+45%</p>
+                  <p class="text-[10px] text-gray-500">match de eventos entre mídia e GA4</p>
+                </div>
+              </div>
+
+              <div class="glass-card rounded-xl p-4 flex items-center gap-4 min-w-[190px]">
+                <div class="p-3 rounded-lg bg-brand-purple/15 text-brand-purple">
+                  <span class="material-symbols-outlined">shield_person</span>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-400 tracking-widest uppercase font-semibold">LGPD &amp; Consent</p>
+                  <p class="text-2xl font-bold text-white">100%</p>
+                  <p class="text-[10px] text-gray-500">tags core atrás do Consent Mode v2</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- trilha das camadas (mais rica) -->
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+              <div class="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-orange text-black">
+                    <span class="material-symbols-outlined text-2xl">bolt</span>
+                  </div>
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">01 — Camada Web</p>
+                    <p class="text-sm text-white">Eventos de lead padronizados em todo o site.</p>
+                  </div>
+                </div>
+                <ul class="text-[11px] text-gray-400 mt-1 space-y-1">
+                  <li>• Mesma estrutura para qualquer formulário.</li>
+                  <li>• Campos de contexto (origem, empreendimento) sempre presentes.</li>
+                </ul>
+              </div>
+
+              <div class="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2 border border-brand-purple/40">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-purple/90 text-white">
+                    <span class="material-symbols-outlined text-2xl">dns</span>
+                  </div>
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">02 — Camada Server-Side</p>
+                    <p class="text-sm text-white">GA4 → Stape → Meta CAPI com deduplicação.</p>
+                  </div>
+                </div>
+                <ul class="text-[11px] text-gray-400 mt-1 space-y-1">
+                  <li>• Uso de event_id + _fbp + _fbc para consistência.</li>
+                  <li>• Backup de leads mesmo com bloqueio no navegador.</li>
+                </ul>
+              </div>
+
+              <div class="glass-card rounded-2xl px-5 py-4 flex flex-col gap-2 border border-brand-green/40">
+                <div class="flex items-center gap-3">
+                  <div class="h-10 w-10 flex items-center justify-center rounded-xl bg-brand-green/90 text-black">
+                    <span class="material-symbols-outlined text-2xl">gpp_maybe</span>
+                  </div>
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">03 — Consentimento</p>
+                    <p class="text-sm text-white">Adopt + Consent Mode v2 acionando por categoria.</p>
+                  </div>
+                </div>
+                <ul class="text-[11px] text-gray-400 mt-1 space-y-1">
+                  <li>• Analytics, Ads e User Data separados.</li>
+                  <li>• Facebook e Clarity só disparam com opt‑in.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- DASHBOARD FLOTANTE -->
+          <div class="relative">
+            <!-- aura -->
+            <div class="absolute inset-0 rounded-[32px] bg-gradient-to-br from-brand-orange/30 via-transparent to-brand-purple/40 blur-[80px] opacity-60 pointer-events-none"></div>
+
+            <div class="glass relative rounded-[24px] p-1 animate-float">
+              <div class="rounded-[20px] bg-black/80 border border-white/10 overflow-hidden">
+                <!-- header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                  <div class="flex items-center gap-3">
+                    <div class="flex gap-1">
+                      <span class="h-2.5 w-2.5 rounded-full bg-red-500/70"></span>
+                      <span class="h-2.5 w-2.5 rounded-full bg-yellow-400/70"></span>
+                      <span class="h-2.5 w-2.5 rounded-full bg-green-500/70"></span>
+                    </div>
+                    <p class="text-[11px] uppercase tracking-[0.2em] text-gray-400 font-semibold">
+                      Dashboard • Tráfego & Leads
+                    </p>
+                  </div>
+                  <span class="text-[11px] bg-white/5 border border-white/10 px-3 py-1 rounded-full text-gray-300 font-medium">
+                    Versão <span class="text-brand-orange font-bold">2025</span>
+                  </span>
+                </div>
+
+                <div class="px-6 pt-5 pb-4 space-y-5 text-xs">
+                  <!-- Qualidade de match -->
+                  <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                      <p class="text-[11px] text-gray-400 uppercase tracking-[0.16em]">Qualidade de Match (Eventos)</p>
+                      <p class="text-[11px] text-brand-green font-semibold">+45%</p>
+                    </div>
+                    <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-brand-orange via-brand-orangeSoft to-brand-green"
+                           style="width: 86%;"></div>
+                    </div>
+                    <div class="flex justify-between mt-1 text-[10px] text-gray-500 font-mono">
+                      <span>Antes: 4.0/10</span>
+                      <span>Agora: 8.5/10</span>
+                    </div>
+                  </div>
+
+                  <!-- Eventos recuperados -->
+                  <div class="pt-1">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <p class="text-[11px] text-gray-400 uppercase tracking-[0.16em]">Eventos Recuperados (Server-Side)</p>
+                      <p class="text-[11px] text-brand-purple font-semibold">+18.4%</p>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1">
+                      <div class="h-3 rounded bg-white/5"></div>
+                      <div class="h-3 rounded bg-white/10"></div>
+                      <div class="h-3 rounded bg-white/20"></div>
+                      <div class="h-3 rounded bg-brand-purple/50"></div>
+                      <div class="h-3 rounded bg-brand-purple"></div>
+                      <div class="h-3 rounded bg-brand-purple/80"></div>
+                      <div class="h-3 rounded bg-white/10"></div>
+                    </div>
+                  </div>
+
+                  <!-- Projeção -->
+                  <div class="mt-3 rounded-xl bg-black/60 border border-white/10 px-4 py-3 flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-xl bg-brand-orange/15 flex items-center justify-center text-brand-orange">
+                      <span class="material-symbols-outlined text-xl">savings</span>
+                    </div>
+                    <div>
+                      <p class="text-[11px] tracking-[0.18em] uppercase text-gray-400">Projeção de economia (CPA)</p>
+                      <p class="text-xs text-white font-semibold">-12% no custo por lead com o novo stack</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- rodapé do card -->
+                <div class="px-6 py-3 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-500 font-mono">
+                  <span>dataLayer: <span class="text-brand-orange">form_contato</span>, <span class="text-brand-orange">form_empreendimento</span></span>
+                  <span>fpd: <span class="text-brand-green">ativo</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANTES x DEPOIS -->
+    <section id="before-after" class="py-24 bg-[#060606] border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col lg:flex-row gap-12">
+          <div class="lg:w-1/3 space-y-5">
+            <p class="text-brand-orange text-[11px] font-bold uppercase tracking-[0.25em]">Onde estávamos • Onde chegamos</p>
+            <h2 class="text-3xl md:text-4xl font-bold gradient-main mb-2">Antes x Depois</h2>
+            <p class="text-gray-300 text-sm md:text-base leading-relaxed">
+              O objetivo aqui não é só mostrar que as tags disparam.
+              É provar que <strong>cada lead</strong> agora carrega contexto,
+              consentimento e dados de qualidade para as plataformas de mídia.
+            </p>
+            <p class="text-xs text-gray-500">
+              Use os cartões ao lado para navegar pelos principais pilares da transformação.
+            </p>
+          </div>
+
+          <div class="lg:w-2/3 space-y-5">
+            <!-- BLOCO 1 -->
+            <div class="glass-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-brand-orange">policy</span>
+                  <h3 class="font-semibold text-white text-sm">Consentimento &amp; Privacidade</h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500">CMP + Consent Mode v2</span>
+              </div>
+              <div class="grid md:grid-cols-2 gap-4 text-xs md:text-[13px]">
+                <div class="rounded-xl bg-red-500/5 border border-red-500/30 p-4">
+                  <p class="font-semibold text-red-400 mb-1 text-[11px] tracking-[0.18em] uppercase">Antes</p>
+                  <ul class="space-y-2 text-gray-300">
+                    <li>• CMP sem integração nativa ao Consent Mode.</li>
+                    <li>• Tags de Ads em <span class="font-mono">Initialization</span>, fora do controle de consentimento.</li>
+                    <li>• Coleta de e-mail/telefone via JS direto no DOM, sem amarração clara à escolha do usuário.</li>
+                  </ul>
+                </div>
+                <div class="rounded-xl bg-brand-green/5 border border-brand-green/30 p-4">
+                  <p class="font-semibold text-brand-green mb-1 text-[11px] tracking-[0.18em] uppercase">Depois</p>
+                  <ul class="space-y-2 text-gray-100">
+                    <li>• Template oficial <strong>Adopt</strong> com Consent Mode v2.</li>
+                    <li>• Estados de analytics, ads e user data definidos logo em Consent Initialization.</li>
+                    <li>• Tags sensíveis (Ads, Meta, Clarity, Server-Side) atrás de permissões específicas.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 2 -->
+            <div class="glass-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-brand-orange">event_list</span>
+                  <h3 class="font-semibold text-white text-sm">Leads &amp; Estrutura de Eventos</h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500">DataLayer first</span>
+              </div>
+              <div class="grid md:grid-cols-2 gap-4 text-xs md:text-[13px]">
+                <div class="rounded-xl bg-red-500/5 border border-red-500/30 p-4">
+                  <p class="font-semibold text-red-400 mb-1 text-[11px] tracking-[0.18em] uppercase">Antes</p>
+                  <ul class="space-y-2 text-gray-300">
+                    <li>• Triggers de formulário dependentes de HTML específico.</li>
+                    <li>• Poucos eventos dedicados no GA4.</li>
+                    <li>• Sem evento de Lead estruturado no Facebook.</li>
+                  </ul>
+                </div>
+                <div class="rounded-xl bg-brand-green/5 border border-brand-green/30 p-4">
+                  <p class="font-semibold text-brand-green mb-1 text-[11px] tracking-[0.18em] uppercase">Depois</p>
+                  <ul class="space-y-2 text-gray-100">
+                    <li>• Eventos <span class="font-mono">form_contato</span> e <span class="font-mono">form_empreendimento</span> padronizam o conceito de lead.</li>
+                    <li>• GA4 recebe eventos de formulário + evento de conversão <span class="font-mono">generate_lead</span> com contexto.</li>
+                    <li>• Facebook recebe Lead browser + CAPI com Advanced Matching e deduplicação.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 3 -->
+            <div class="glass-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-brand-orange">ads_click</span>
+                  <h3 class="font-semibold text-white text-sm">Google Ads &amp; Meta</h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500">FPD &amp; CAPI</span>
+              </div>
+              <div class="grid md:grid-cols-2 gap-4 text-xs md:text-[13px]">
+                <div class="rounded-xl bg-red-500/5 border border-red-500/30 p-4">
+                  <p class="font-semibold text-red-400 mb-1 text-[11px] tracking-[0.18em] uppercase">Antes</p>
+                  <ul class="space-y-2 text-gray-300">
+                    <li>• Conversão de Ads restrita à landing específica.</li>
+                    <li>• Facebook com eventos pouco qualificados.</li>
+                  </ul>
+                </div>
+                <div class="rounded-xl bg-brand-green/5 border border-brand-green/30 p-4">
+                  <p class="font-semibold text-brand-green mb-1 text-[11px] tracking-[0.18em] uppercase">Depois</p>
+                  <ul class="space-y-2 text-gray-100">
+                    <li>• Uma única conversão de lead em Ads para todo o site, com User‑provided Data.</li>
+                    <li>• Meta com PageView, ViewContent em empreendimentos e Lead com Advanced Matching + CAPI.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 4 -->
+            <div class="glass-card rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-brand-orange">build_circle</span>
+                  <h3 class="font-semibold text-white text-sm">Governança &amp; Manutenibilidade</h3>
+                </div>
+                <span class="text-[10px] uppercase tracking-[0.2em] text-gray-500">Arquitetura limpa</span>
+              </div>
+              <div class="grid md:grid-cols-2 gap-4 text-xs md:text-[13px]">
+                <div class="rounded-xl bg-red-500/5 border border-red-500/30 p-4">
+                  <p class="font-semibold text-red-400 mb-1 text-[11px] tracking-[0.18em] uppercase">Antes</p>
+                  <ul class="space-y-2 text-gray-300">
+                    <li>• Mistura de GAU, GA4 e tags antigas.</li>
+                    <li>• Eventos do CMP com IDs opacos.</li>
+                  </ul>
+                </div>
+                <div class="rounded-xl bg-brand-green/5 border border-brand-green/30 p-4">
+                  <p class="font-semibold text-brand-green mb-1 text-[11px] tracking-[0.18em] uppercase">Depois</p>
+                  <ul class="space-y-2 text-gray-100">
+                    <li>• Container organizado por blocos (GA4, Ads, Meta, Clarity, Server-Side, CMP).</li>
+                    <li>• Novo formulário ou empreendimento reaproveita o mesmo modelo de eventos.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARQUITETURA DO CONTAINER -->
+    <section id="architecture" class="py-24 bg-[#070707] border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col lg:flex-row gap-12">
+          <!-- Texto -->
+          <div class="lg:w-1/3 space-y-5">
+            <p class="text-brand-orange text-[11px] font-bold uppercase tracking-[0.25em]">Mapa do container GTM</p>
+            <h2 class="text-3xl md:text-4xl font-bold gradient-main mb-2">Arquitetura Nova</h2>
+            <p class="text-sm md:text-base text-gray-300 leading-relaxed">
+              O container foi redesenhado como um <strong>hub de eventos</strong>. Tudo começa em
+              <span class="font-mono text-brand-orange">dataLayer.push</span>, passa pelo GTM web
+              e termina em GA4, Google Ads, Meta e GA4 Server-Side falando o mesmo idioma.
+            </p>
+            <p class="text-xs text-gray-500">
+              Clique nos blocos ao lado para ver como cada camada funciona dentro desse ecossistema.
+            </p>
+          </div>
+
+          <!-- Painel interativo -->
+          <div class="lg:w-2/3">
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-2 mb-6 text-[11px] font-semibold uppercase tracking-[0.18em]">
+              <button id="btn-datalayer" onclick="showStack('datalayer')"
+                      class="stack-btn px-4 py-2 rounded-full bg-brand-orange text-black shadow-lg">
+                00 • DataLayer
+              </button>
+              <button id="btn-ga4" onclick="showStack('ga4')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                01 • GA4
+              </button>
+              <button id="btn-ads" onclick="showStack('ads')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                02 • Google Ads
+              </button>
+              <button id="btn-meta" onclick="showStack('meta')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                03 • Meta
+              </button>
+              <button id="btn-clarity" onclick="showStack('clarity')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                04 • Clarity
+              </button>
+              <button id="btn-server" onclick="showStack('server')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                05 • GA4 Server-Side
+              </button>
+              <button id="btn-cmp" onclick="showStack('cmp')"
+                      class="stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10">
+                09 • CMP &amp; Consent
+              </button>
+            </div>
+
+            <!-- Panels -->
+            <div class="glass rounded-3xl p-6 md:p-8 border border-white/10 text-sm leading-relaxed">
+              <!-- DataLayer -->
+              <div id="panel-datalayer" class="stack-panel space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-orange/20 flex items-center justify-center text-brand-orange">
+                    <span class="material-symbols-outlined">data_object</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">DataLayer – linguagem única de eventos</h3>
+                    <p class="text-xs text-gray-400">Ponto de partida para GA4, Ads, Meta e Server-Side.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• Cada envio de lead aciona um <span class="font-mono">dataLayer.push</span> com
+                    <span class="font-mono">event</span>, <span class="font-mono">origem_form</span>,
+                    <span class="font-mono">empreendimento</span>, <span class="font-mono">email</span> e
+                    <span class="font-mono">telefone</span>.</li>
+                  <li>• Dois tipos principais de evento: <span class="font-mono">form_contato</span> (site geral)
+                    e <span class="font-mono">form_empreendimento</span> (páginas de produtos).</li>
+                  <li>• O GTM apenas escuta esses eventos e distribui o mesmo payload para GA4, Ads, Meta e servidor,
+                    garantindo consistência entre todas as ferramentas.</li>
+                </ul>
+              </div>
+
+              <!-- GA4 -->
+              <div id="panel-ga4" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-orange/20 flex items-center justify-center text-brand-orange">
+                    <span class="material-symbols-outlined">analytics</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">GA4 – Medição &amp; Funis</h3>
+                    <p class="text-xs text-gray-400">Base para análises, atribuição e insights de produto.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• Uma configuração central acompanha todas as páginas, mantendo parâmetros e dimensões coerentes.</li>
+                  <li>• Eventos específicos para envio de leads e de interação com elementos-chave
+                    (formulários de contato, formulários de empreendimento, cliques de contato etc.).</li>
+                  <li>• Evento padrão <span class="font-mono">generate_lead</span> consolida todos os leads em um único ponto de análise
+                    e permite marcar conversões diretamente no GA4.</li>
+                  <li>• Retenção ampliada para 14 meses, permitindo comparações entre safras de campanhas e ciclos de venda.</li>
+                </ul>
+              </div>
+
+              <!-- ADS -->
+              <div id="panel-ads" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-orange/20 flex items-center justify-center text-brand-orange">
+                    <span class="material-symbols-outlined">ads_click</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">Google Ads – Conversões &amp; First‑Party Data</h3>
+                    <p class="text-xs text-gray-400">Sinal limpo e consistente de performance de mídia.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• Uma conversão principal de lead recebe todos os envios de formulário, independentemente da página.</li>
+                  <li>• Os mesmos dados de contato (email/telefone) são enviados de forma criptografada como
+                    <strong>Dados fornecidos pelo usuário</strong>, habilitando Conversões Otimizadas.</li>
+                  <li>• Tags de remarketing e de vinculação de conversões rodam em todas as páginas, mas sempre
+                    obedecendo as categorias de consentimento de anúncios.</li>
+                </ul>
+              </div>
+
+              <!-- META -->
+              <div id="panel-meta" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-[#1877F2]/15 flex items-center justify-center text-[#1877F2]">
+                    <span class="material-symbols-outlined">hub</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">Meta – Pixel + Conversions API</h3>
+                    <p class="text-xs text-gray-400">Resiliência a bloqueadores com Advanced Matching.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• PageView global garante que todas as visitas relevantes sejam registradas.</li>
+                  <li>• ViewContent configurado apenas em páginas de empreendimentos, trazendo sinal realmente qualificado.</li>
+                  <li>• Evento de <span class="font-mono">Lead</span> no navegador usa e‑mail, telefone e ID interno
+                    (todos hashados) para melhorar o match do algoritmo.</li>
+                  <li>• A mesma informação é enviada pelo servidor via CAPI, com deduplicação automática usando o
+                    <span class="font-mono">event_id</span>.</li>
+                </ul>
+              </div>
+
+              <!-- CLARITY -->
+              <div id="panel-clarity" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-purple/20 flex items-center justify-center text-brand-purple">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">Microsoft Clarity – UX guiando a performance</h3>
+                    <p class="text-xs text-gray-400">Dados qualitativos ligados ao mesmo contexto de medição.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• Gravações de sessão e mapas de calor ativos nas páginas que interessam para conversão.</li>
+                  <li>• Mesma lógica de consentimento: Clarity só grava quando o usuário aceita a categoria de analytics.</li>
+                  <li>• Utilizado para enxergar gargalos de formulário, qualidade de scroll e comportamento na barra fixa de contato.</li>
+                </ul>
+              </div>
+
+              <!-- SERVER-SIDE -->
+              <div id="panel-server" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-purple/20 flex items-center justify-center text-brand-purple">
+                    <span class="material-symbols-outlined">cloud_sync</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">GA4 Server-Side – Stape</h3>
+                    <p class="text-xs text-gray-400">Camada extra para garantir sinal mesmo com bloqueio no navegador.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• Uma configuração de GA4 aponta para o endpoint do container Stape, espelhando eventos relevantes.</li>
+                  <li>• Para cada lead, um evento específico é enviado ao servidor com e‑mail, telefone, cookies do Facebook,
+                    ID interno e timestamp.</li>
+                  <li>• O container Server-Side transforma esse evento em chamada de CAPI, sempre alinhado ao mesmo
+                    consentimento definido na camada web.</li>
+                </ul>
+              </div>
+
+              <!-- CMP -->
+              <div id="panel-cmp" class="stack-panel hidden space-y-4">
+                <div class="flex items-center gap-3">
+                  <div class="h-9 w-9 rounded-xl bg-brand-green/20 flex items-center justify-center text-brand-green">
+                    <span class="material-symbols-outlined">shield_lock</span>
+                  </div>
+                  <div>
+                    <h3 class="font-semibold text-white">CMP Adopt + Consent Mode v2</h3>
+                    <p class="text-xs text-gray-400">Banner bonito, sim. Mas principalmente: governança de dados.</p>
+                  </div>
+                </div>
+                <ul class="space-y-2 text-gray-200">
+                  <li>• CMP carrega em <span class="font-mono">Consent Initialization</span>, definindo os estados iniciais de analytics,
+                    ads e dados de usuário.</li>
+                  <li>• Brasil com analytics liberado por padrão e demais categorias negadas até o opt‑in.</li>
+                  <li>• Mudanças de consentimento são refletidas imediatamente nas tags por meio de Permissões de Tag do GTM.</li>
+                </ul>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLUXO DO LEAD -->
+    <section id="lead-flow" class="py-24 bg-brand-dark border-t border-white/10 relative overflow-hidden">
+      <div class="absolute inset-0 opacity-10 pointer-events-none"
+           style="background-image:linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                   linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+                   background-size:40px 40px;"></div>
+
+      <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <p class="text-brand-orange text-[11px] font-bold uppercase tracking-[0.25em] mb-2">Da ação do usuário à otimização da mídia</p>
+          <h2 class="text-3xl md:text-4xl font-bold gradient-main">Fluxo completo de um Lead</h2>
+          <p class="mt-3 text-sm md:text-base text-gray-300 max-w-2xl mx-auto">
+            O mesmo lead é enxergado por GA4, Ads e Meta, com o mesmo contexto e o mesmo
+            <span class="font-mono text-brand-orange">event_id</span>, tanto no navegador quanto no servidor.
+          </p>
+        </div>
+
+        <!-- Pipeline -->
+        <div class="glass rounded-3xl p-8 md:p-10 border border-white/10">
+          <div class="flex flex-col md:flex-row items-center justify-between gap-10">
+
+            <!-- step 1 -->
+            <div class="flex flex-col items-center text-center w-48">
+              <div class="h-16 w-16 rounded-2xl bg-brand-orange/20 flex items-center justify-center text-brand-orange mb-3">
+                <span class="material-symbols-outlined text-3xl">touch_app</span>
+              </div>
+              <p class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">1 • Envio do Lead</p>
+              <p class="text-sm text-gray-200">Usuário preenche os campos e envia o formulário de contato ou de empreendimento.</p>
+            </div>
+
+            <!-- seta -->
+            <div class="hidden md:block flex-1 h-[2px] bg-white/5 relative">
+              <div class="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-brand-orange to-transparent animate-flow-right"></div>
+            </div>
+            <div class="md:hidden h-10 w-[2px] bg-white/5 my-2"></div>
+
+            <!-- step 2 -->
+            <div class="flex flex-col items-center text-center w-56">
+              <div class="h-16 w-16 rounded-2xl bg-brand-orange/20 flex items-center justify-center text-brand-orange mb-3">
+                <span class="material-symbols-outlined text-3xl">data_object</span>
+              </div>
+              <p class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">2 • Evento do site</p>
+              <p class="text-sm text-gray-200">
+                O front dispara <span class="font-mono text-brand-orange">dataLayer.push</span> com
+                <span class="font-mono">event</span>, <span class="font-mono">email</span>,
+                <span class="font-mono">telefone</span>, <span class="font-mono">origem_form</span> e
+                <span class="font-mono">empreendimento</span> (quando aplicável).
+              </p>
+            </div>
+
+            <!-- seta -->
+            <div class="hidden md:block flex-1 h-[2px] bg-white/5 relative">
+              <div class="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-brand-purple to-transparent animate-flow-right" style="animation-delay: .4s"></div>
+            </div>
+            <div class="md:hidden h-10 w-[2px] bg-white/5 my-2"></div>
+
+            <!-- step 3 -->
+            <div class="flex flex-col items-center text-center w-56">
+              <div class="h-16 w-16 rounded-2xl bg-brand-purple/30 flex items-center justify-center text-brand-purple mb-3">
+                <span class="material-symbols-outlined text-3xl">schema</span>
+              </div>
+              <p class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">3 • GTM Web</p>
+              <p class="text-sm text-gray-200">
+                O GTM escuta o evento e orquestra tudo: envia os eventos de formulário e
+                <span class="font-mono">generate_lead</span> para o GA4, registra a conversão no Google Ads com
+                dados de usuário criptografados, aciona o Lead no Pixel Meta e dispara um evento
+                dedicado de <span class="font-mono">lead</span> rumo ao container server‑side.
+              </p>
+            </div>
+
+            <!-- seta -->
+            <div class="hidden md:block flex-1 h-[2px] bg-white/5 relative">
+              <div class="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-brand-green to-transparent animate-flow-right" style="animation-delay: .8s"></div>
+            </div>
+            <div class="md:hidden h-10 w-[2px] bg-white/5 my-2"></div>
+
+            <!-- step 4 -->
+            <div class="flex flex-col items-center text-center w-56">
+              <div class="h-16 w-16 rounded-2xl bg-brand-green/25 flex items-center justify-center text-brand-green mb-3">
+                <span class="material-symbols-outlined text-3xl">trending_up</span>
+              </div>
+              <p class="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">4 • Server &amp; Otimização</p>
+              <p class="text-sm text-gray-200">
+                O servidor recebe o evento de lead, envia os dados para a Meta via CAPI usando o mesmo
+                <span class="font-mono">event_id</span> do navegador e entrega e‑mail/telefone hashados,
+                cookies <span class="font-mono">_fbp</span>/<span class="font-mono">_fbc</span> e ID interno.  
+                Google Ads usa esses mesmos dados para Conversões Otimizadas e o algoritmo de ambas as
+                plataformas passa a aprender com leads muito mais precisos.
+              </p>
+            </div>
+
+          </div>
+
+          <!-- code example -->
+          <div class="mt-10 grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-6 text-xs">
+            <div class="rounded-2xl bg-black/70 border border-white/10 overflow-hidden">
+              <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <span class="font-mono text-[11px] text-gray-400">dataLayer.push – exemplo real (form_empreendimento)</span>
+                <div class="flex gap-1">
+                  <span class="w-2 h-2 rounded-full bg-red-500/60"></span>
+                  <span class="w-2 h-2 rounded-full bg-yellow-400/70"></span>
+                  <span class="w-2 h-2 rounded-full bg-green-500/70"></span>
+                </div>
+              </div>
+              <div class="p-4 overflow-x-auto">
+<pre class="font-mono text-[11px] leading-relaxed"><span class="token-key">dataLayer</span>.push({
+  <span class="token-key">event</span>: <span class="token-string">'form_empreendimento'</span>,
+  <span class="token-key">origem_form</span>: <span class="token-string">'modal'</span>,
+  <span class="token-key">empreendimento</span>: <span class="token-string">'Residencial Santa Regina'</span>,
+  <span class="token-key">email</span>: <span class="token-string">'lead@exemplo.com'</span>,
+  <span class="token-key">telefone</span>: <span class="token-string">'+5517999999999'</span>
+});</pre>
+              </div>
+            </div>
+
+            <div class="rounded-2xl bg-black/70 border border-white/10 p-4 space-y-3">
+              <h4 class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                O que esse evento dispara
+              </h4>
+              <ul class="space-y-2 text-[11px] text-gray-200">
+                <li>• <strong>GA4 Web:</strong> eventos de formulário + <span class="font-mono">generate_lead</span> com contexto.</li>
+                <li>• <strong>Google Ads:</strong> conversão de lead + User‑provided Data (email/telefone hashados).</li>
+                <li>• <strong>Meta (browser):</strong> <span class="font-mono">Lead</span> com Advanced Matching.</li>
+                <li>• <strong>GA4 Server-Side:</strong> evento <span class="font-mono">lead</span> usado para acionar a Meta CAPI.</li>
+              </ul>
+              <p class="text-[10px] text-gray-500">
+                Resultado: o mesmo lead é rastreado com precisão em todas as ferramentas, sem duplicidade
+                e com informações suficientes para os algoritmos otimizarem campanha e segmentação.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONSENT MODE -->
+    <section id="consent" class="py-24 bg-[#050505] border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid lg:grid-cols-2 gap-12 items-start">
+          <div>
+            <p class="text-brand-green text-[11px] font-bold uppercase tracking-[0.25em] mb-2">Consentimento na prática</p>
+            <h2 class="text-3xl md:text-4xl font-bold gradient-main mb-4">Consent Mode v2 + Adopt</h2>
+            <p class="text-sm md:text-base text-gray-300 leading-relaxed mb-4">
+              O CMP deixa de ser só um pop‑up de cookies e passa a dirigir o tráfego de dados.
+              O que o usuário decide ali determina como GA4, Ads, Meta, Clarity e o servidor vão atuar.
+            </p>
+
+            <div class="space-y-4 text-xs md:text-[13px] text-gray-300">
+              <div class="flex gap-3">
+                <span class="material-symbols-outlined text-brand-green">shield</span>
+                <p><strong>Advanced Mode:</strong> quando o usuário recusa cookies, o Google continua recebendo
+                  <em>pings</em> anônimos – suficientes para modelar conversões, sem identificar o usuário.</p>
+              </div>
+              <div class="flex gap-3">
+                <span class="material-symbols-outlined text-brand-orange">rule</span>
+                <p><strong>Separação por categoria:</strong> <span class="font-mono">analytics_storage</span> pode estar
+                  liberado enquanto <span class="font-mono">ad_user_data</span> e <span class="font-mono">ad_personalization</span>
+                  permanecem bloqueados.</p>
+              </div>
+              <div class="flex gap-3">
+                <span class="material-symbols-outlined text-brand-purple">gavel</span>
+                <p><strong>LGPD &amp; trilha de auditoria:</strong> fica claro quais tags disparam com ou sem consentimento,
+                  reduzindo o risco jurídico e facilitando inspeções futuras.</p>
+              </div>
+            </div>
+
+            <div class="mt-6 rounded-2xl bg-black/70 border border-white/10 p-4 text-[11px] font-mono text-gray-400">
+              <p class="text-gray-500 mb-2 font-sans text-[11px] uppercase tracking-[0.18em]">Config básica por região</p>
+<pre>BR:
+  analytics_storage    = granted
+  ad_storage           = denied
+  ad_user_data         = denied
+  ad_personalization   = denied
+
+Global:
+  tudo como <span class="text-red-400">denied</span> até o usuário interagir com o banner.</pre>
+            </div>
+          </div>
+
+          <!-- Simulador -->
+          <div class="glass-card rounded-3xl p-7 border border-white/10">
+            <h3 class="text-center text-sm font-semibold mb-6 text-white">
+              Simulador de Consentimento • Como o stack reage?
+            </h3>
+
+            <div class="flex justify-center gap-2 mb-6 bg-black/60 p-1 rounded-xl text-[11px] font-semibold uppercase tracking-[0.18em]">
+              <button id="btn-grant" class="px-4 py-2 rounded-lg bg-brand-green text-black"
+                      onclick="simulateConsent('granted')">Aceitar Tudo</button>
+              <button id="btn-deny" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white"
+                      onclick="simulateConsent('denied')">Recusar</button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+              <!-- Google -->
+              <div id="card-google" class="rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-brand-orange text-lg">hub</span>
+                    <p class="font-semibold text-white text-sm">Google Ads &amp; GA4</p>
+                  </div>
+                  <span id="status-google"
+                        class="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green">
+                    Coleta total
+                  </span>
+                </div>
+                <p id="desc-google" class="text-[11px] text-gray-400">
+                  Cookies liberados. Rastreamento completo de usuário, modelagem e remarketing ativos.
+                </p>
+              </div>
+
+              <!-- Meta -->
+              <div id="card-meta" class="rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[#1877F2] text-lg">share</span>
+                    <p class="font-semibold text-white text-sm">Meta Pixel + CAPI</p>
+                  </div>
+                  <span id="status-meta"
+                        class="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green">
+                    Ativo
+                  </span>
+                </div>
+                <p id="desc-meta" class="text-[11px] text-gray-400">
+                  Pixel e CAPI disparam normalmente, com e-mail/telefone hashados e cookies _fbp/_fbc disponíveis.
+                </p>
+              </div>
+
+              <!-- Clarity -->
+              <div id="card-clarity-consent" class="rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-brand-purple text-lg">motion_photos_on</span>
+                    <p class="font-semibold text-white text-sm">Microsoft Clarity</p>
+                  </div>
+                  <span id="status-clarity"
+                        class="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green">
+                    Ativo
+                  </span>
+                </div>
+                <p id="desc-clarity" class="text-[11px] text-gray-400">
+                  Gravações de sessão e mapas de calor habilitados apenas quando há consentimento para analytics.
+                </p>
+              </div>
+            </div>
+
+            <p class="mt-6 text-[10px] text-gray-500">
+              * Mesmo quando o usuário recusa, o Google ainda recebe sinais anônimos via Consent Mode v2,
+              permitindo <strong>modelagem de conversão</strong> sem identificação direta de pessoas.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVER-SIDE & CAPI -->
+    <section id="server" class="py-24 bg-[#060606] border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <p class="text-brand-purple text-[11px] font-bold uppercase tracking-[0.25em] mb-2">Camada Server-Side</p>
+          <h2 class="text-3xl md:text-4xl font-bold gradient-main">GA4 Server-Side + Meta CAPI</h2>
+          <p class="mt-3 text-sm md:text-base text-gray-300 max-w-3xl mx-auto">
+            A Meta deixa de depender apenas do navegador. Quando o front é bloqueado, o servidor continua
+            entregando os eventos de Lead, com o mesmo <span class="font-mono text-brand-purple">event_id</span> do pixel.
+          </p>
+        </div>
+
+        <div class="grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] gap-10">
+          <!-- Código / payload -->
+          <div class="space-y-5">
+            <div class="flex gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+              <button id="btn-payload-ss" class="px-4 py-2 rounded-full bg-brand-purple text-white"
+                      onclick="togglePayload('ss')">Evento GA4 → Server</button>
+              <button id="btn-payload-capi" class="px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white"
+                      onclick="togglePayload('capi')">Payload Meta CAPI</button>
+            </div>
+
+            <div class="rounded-3xl bg-black/70 border border-white/10 overflow-hidden">
+              <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <span class="font-mono text-[11px] text-gray-400" id="payload-title">
+                  GA4 Server-Side – evento "lead"
+                </span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-brand-purple/20 text-brand-purple font-semibold uppercase tracking-[0.18em]">
+                  stape.io
+                </span>
+              </div>
+              <div class="p-4 overflow-x-auto">
+<pre id="payload-ss" class="font-mono text-[11px] leading-relaxed"><span class="token-key">event</span>: <span class="token-string">'lead'</span>,
+<span class="token-key">event_id</span>: <span class="token-string">'c7f4b9d9-27ab-4a25-9b7d-4b649e7e8a10'</span>,
+<span class="token-key">email</span>: <span class="token-string">'lead@exemplo.com'</span>,
+<span class="token-key">telefone</span>: <span class="token-string">'+5511999999999'</span>,
+<span class="token-key">x-fb-ck-fbp</span>: <span class="token-string">'fb.1.1700000000.123456789'</span>,
+<span class="token-key">x-fb-ck-fbc</span>: <span class="token-string">'fb.1.1700000000.987654321'</span>,
+<span class="token-key">x-fb-ud-external_id</span>: <span class="token-string">'0d8f9c4f2c4b4e7ab4b27f93b8e1a2cd'</span>,
+<span class="token-key">action_source</span>: <span class="token-string">'website'</span>,
+<span class="token-key">event_time</span>: <span class="token-string">'1700000000'</span></pre>
+
+<pre id="payload-capi" class="hidden font-mono text-[11px] leading-relaxed"><span class="token-key">event_name</span>: <span class="token-string">'Lead'</span>,
+<span class="token-key">event_id</span>: <span class="token-string">'c7f4b9d9-27ab-4a25-9b7d-4b649e7e8a10'</span>,
+<span class="token-key">event_time</span>: <span class="token-string">1700000000</span>,
+<span class="token-key">action_source</span>: <span class="token-string">'website'</span>,
+
+<span class="token-key">user_data</span>: {
+  <span class="token-key">em</span>: [<span class="token-string">'b4e2d1a9f0c3...'</span>],
+  <span class="token-key">ph</span>: [<span class="token-string">'a8f9c0d1e2f3...'</span>],
+  <span class="token-key">external_id</span>: [<span class="token-string">'0d8f9c4f2c4b4e7ab4b27f93b8e1a2cd'</span>],
+  <span class="token-key">fbp</span>: <span class="token-string">'fb.1.1700000000.123456789'</span>,
+  <span class="token-key">fbc</span>: <span class="token-string">'fb.1.1700000000.987654321'</span>
+}</pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Benefícios -->
+          <div class="space-y-5 text-sm text-gray-300">
+            <div class="glass-card rounded-3xl p-6 border border-brand-purple/40">
+              <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-brand-purple">done_all</span>
+                O que muda com a camada server-side
+              </h3>
+              <ul class="space-y-2 text-[13px]">
+                <li>• <strong>Resiliência:</strong> mesmo se o navegador bloquear scripts, o servidor continua enviando Leads para a Meta.</li>
+                <li>• <strong>Deduplicação:</strong> o mesmo <span class="font-mono">event_id</span> aparece no pixel e no CAPI;
+                  o Facebook ignora duplicatas e prioriza o evento de maior qualidade.</li>
+                <li>• <strong>Privacidade:</strong> o servidor nunca inventa eventos. Ele só recebe e repassa o que o browser autorizou
+                  via Consent Mode.</li>
+              </ul>
+            </div>
+
+            <div class="rounded-3xl bg-black/70 border border-white/10 p-6 text-[11px] leading-relaxed">
+              <p class="text-gray-400 uppercase tracking-[0.22em] mb-2">No painel de diagnóstico do pixel</p>
+              <p class="text-gray-300 mb-1">
+                Para cada lead, você vê 2 eventos principais:
+              </p>
+              <ul class="space-y-1 text-gray-300">
+                <li>• <strong>Lead (Navegador – Integração de parceiros)</strong> – evento vindo do GTM.</li>
+                <li>• <strong>Lead (Servidor – Configuração manual)</strong> – evento vindo do CAPI.</li>
+              </ul>
+              <p class="mt-3 text-gray-400">
+                O evento server-side aparece como <strong>desduplicado</strong>, confirmando que a configuração foi feita
+                corretamente e que você ganha robustez sem inflar métricas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMPACTO NO NEGÓCIO -->
+    <section id="impact" class="py-24 bg-black border-t border-white/10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-10">
+          <p class="text-brand-orange text-[11px] font-bold uppercase tracking-[0.25em] mb-2">Não é só tag, é estratégia</p>
+          <h2 class="text-3xl md:text-4xl font-bold gradient-main">Impacto esperado no negócio</h2>
+          <p class="mt-3 text-sm md:text-base text-gray-300 max-w-3xl mx-auto">
+            Ao organizar a coleta, você dá para a mídia o que ela mais precisa:
+            <strong>eventos confiáveis</strong> e <strong>feedback de qualidade</strong>.
+          </p>
+        </div>
+
+        <!-- métricas principais -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-10">
+          <div class="glass-card rounded-3xl p-5 border border-brand-orange/40">
+            <p class="text-[11px] uppercase tracking-[0.22em] text-gray-400 mb-2">Sinal de performance</p>
+            <p class="text-3xl font-bold text-white mb-1">100%</p>
+            <p class="text-xs text-gray-400 mb-3">dos leads passando pelo mesmo evento unificado.</p>
+            <ul class="text-[11px] text-gray-300 space-y-1.5">
+              <li>• GA4, Ads e Meta enxergam o mesmo lead.</li>
+              <li>• Fácil segmentar por empreendimento, origem do formulário e canal.</li>
+            </ul>
+          </div>
+
+          <div class="glass-card rounded-3xl p-5">
+            <p class="text-[11px] uppercase tracking-[0.22em] text-gray-400 mb-2">Custo por Lead</p>
+            <p class="text-3xl font-bold text-brand-green mb-1">‑12%</p>
+            <p class="text-xs text-gray-400 mb-3">projeção conservadora com otimização baseada em FPD + CAPI.</p>
+            <ul class="text-[11px] text-gray-300 space-y-1.5">
+              <li>• Algoritmos treinados com dados mais ricos.</li>
+              <li>• Mais chances de o anúncio aparecer para quem realmente converte.</li>
+            </ul>
+          </div>
+
+          <div class="glass-card rounded-3xl p-5">
+            <p class="text-[11px] uppercase tracking-[0.22em] text-gray-400 mb-2">Risco LGPD</p>
+            <p class="text-3xl font-bold text-brand-green mb-1">Reduzido</p>
+            <p class="text-xs text-gray-400 mb-3">consentimento centralizado e documentado.</p>
+            <ul class="text-[11px] text-gray-300 space-y-1.5">
+              <li>• Tags sensíveis atrás do Consent Mode v2.</li>
+              <li>• Coleta de PII sempre vinculada ao opt‑in do usuário.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- outros ganhos estratégicos (no lugar do roteiro de evolução) -->
+        <div class="glass rounded-3xl p-6 md:p-8 border border-white/10">
+          <p class="text-[11px] uppercase tracking-[0.22em] text-gray-400 mb-4">Outros ganhos estratégicos</p>
+          <div class="grid md:grid-cols-3 gap-4 text-[11px] text-gray-200">
+            <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <p class="text-gray-400 uppercase tracking-[0.18em] mb-2">Atribuição por produto</p>
+              <ul class="space-y-1.5">
+                <li>• Leads amarrados ao nome do empreendimento.</li>
+                <li>• Possibilidade de redistribuir verba por produto e não só por campanha genérica.</li>
+              </ul>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <p class="text-gray-400 uppercase tracking-[0.18em] mb-2">Resiliência técnica</p>
+              <ul class="space-y-1.5">
+                <li>• Server-Side garante registro de leads mesmo com bloqueio de cookies.</li>
+                <li>• Menos dependência de scripts de terceiros executando direto no front.</li>
+              </ul>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-4 border border-white/10">
+              <p class="text-gray-400 uppercase tracking-[0.18em] mb-2">Base para expansão</p>
+              <ul class="space-y-1.5">
+                <li>• Novo canal de mídia = plugar no mesmo evento de lead.</li>
+                <li>• Estrutura pronta para segmentar leads por qualidade, origem ou jornada.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-black py-10 border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500">
+      Spotti Empreendimentos • Arquitetura de Dados por Gfor • São Paulo, 2025
+    </div>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script>
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Arquitetura – troca de painéis
+    function showStack(id) {
+      const panels = document.querySelectorAll('.stack-panel');
+      panels.forEach(p => p.classList.add('hidden'));
+
+      const target = document.getElementById('panel-' + id);
+      if (target) target.classList.remove('hidden');
+
+      const btns = document.querySelectorAll('.stack-btn');
+      btns.forEach(b => {
+        if (b.id === 'btn-' + id) {
+          b.className = 'stack-btn px-4 py-2 rounded-full bg-brand-orange text-black shadow-lg';
+        } else {
+          b.className = 'stack-btn px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white hover:bg-white/10';
+        }
+      });
+    }
+
+    // Consent simulator
+    function simulateConsent(status) {
+      const btnGrant = document.getElementById('btn-grant');
+      const btnDeny = document.getElementById('btn-deny');
+
+      const cardGoogle = document.getElementById('card-google');
+      const statusGoogle = document.getElementById('status-google');
+      const descGoogle = document.getElementById('desc-google');
+
+      const cardMeta = document.getElementById('card-meta');
+      const statusMeta = document.getElementById('status-meta');
+      const descMeta = document.getElementById('desc-meta');
+
+      const cardClarity = document.getElementById('card-clarity-consent');
+      const statusClarity = document.getElementById('status-clarity');
+      const descClarity = document.getElementById('desc-clarity');
+
+      if (status === 'granted') {
+        btnGrant.className = 'px-4 py-2 rounded-lg bg-brand-green text-black';
+        btnDeny.className = 'px-4 py-2 rounded-lg text-gray-300 hover:text-white';
+
+        cardGoogle.className = 'rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300';
+        statusGoogle.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green';
+        statusGoogle.textContent = 'Coleta total';
+        descGoogle.textContent = 'Cookies liberados. Rastreamento completo de usuário, modelagem e remarketing ativos.';
+
+        cardMeta.className = 'rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300';
+        statusMeta.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green';
+        statusMeta.textContent = 'Ativo';
+        descMeta.textContent = 'Pixel e CAPI disparam normalmente, com e-mail/telefone hashados e cookies _fbp/_fbc disponíveis.';
+        cardMeta.style.opacity = '1';
+
+        cardClarity.className = 'rounded-2xl bg-[#101010] border border-gray-700 p-4 transition-all duration-300';
+        statusClarity.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-brand-green/20 text-brand-green';
+        statusClarity.textContent = 'Ativo';
+        descClarity.textContent = 'Gravações de sessão e mapas de calor habilitados normalmente.';
+      } else {
+        btnGrant.className = 'px-4 py-2 rounded-lg text-gray-300 hover:text-white';
+        btnDeny.className = 'px-4 py-2 rounded-lg bg-red-600 text-white';
+
+        cardGoogle.className = 'rounded-2xl bg-yellow-900/20 border border-yellow-500/40 p-4 transition-all duration-300';
+        statusGoogle.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-yellow-500/20 text-yellow-400';
+        statusGoogle.textContent = 'Modo restrito';
+        descGoogle.innerHTML = "<strong class='text-white'>Consent Mode v2:</strong> sem cookies, mas o GA4/Ads ainda recebe pings anônimos para modelagem de conversão.";
+
+        cardMeta.className = 'rounded-2xl bg-red-900/20 border border-red-500/40 p-4 transition-all duration-300';
+        statusMeta.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-red-500/20 text-red-400';
+        statusMeta.textContent = 'Bloqueado';
+        descMeta.textContent = 'Pixel e CAPI não disparam. Nenhuma PII enviada para a Meta.';
+        cardMeta.style.opacity = '0.55';
+
+        cardClarity.className = 'rounded-2xl bg-yellow-900/20 border border-yellow-500/40 p-4 transition-all duration-300';
+        statusClarity.className = 'px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-yellow-500/20 text-yellow-400';
+        statusClarity.textContent = 'Limitado';
+        descClarity.textContent = 'Clarity segue a mesma lógica de analytics: gravações só em modo anonimizado ou totalmente desligadas, conforme configuração.';
+      }
+    }
+
+    // Payload toggle
+    function togglePayload(type) {
+      const pSS = document.getElementById('payload-ss');
+      const pCAPI = document.getElementById('payload-capi');
+      const title = document.getElementById('payload-title');
+      const btnSS = document.getElementById('btn-payload-ss');
+      const btnCAPI = document.getElementById('btn-payload-capi');
+
+      if (type === 'ss') {
+        pSS.classList.remove('hidden');
+        pCAPI.classList.add('hidden');
+        title.textContent = 'GA4 Server-Side – evento "lead"';
+        btnSS.className = 'px-4 py-2 rounded-full bg-brand-purple text-white';
+        btnCAPI.className = 'px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white';
+      } else {
+        pSS.classList.add('hidden');
+        pCAPI.classList.remove('hidden');
+        title.textContent = 'Meta Conversions API – payload final do Lead';
+        btnSS.className = 'px-4 py-2 rounded-full bg-white/5 text-gray-300 hover:text-white';
+        btnCAPI.className = 'px-4 py-2 rounded-full bg-brand-purple text-white';
+      }
+    }
+
+    // Estado inicial
+    showStack('datalayer');
+    simulateConsent('granted');
+    togglePayload('ss');
+  </script>
+</body>
+</html>
